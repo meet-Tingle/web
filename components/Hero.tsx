@@ -50,7 +50,7 @@ const MOCK_PROFILES: ProfileProps[] = [
         entrance_year: 21,
         is_graduation: false,
         self_introduction: "동물 키우는 거 좋아해요! 🐾 ",
-        image_url: "/images/profile-image-4.jpg",
+        image_url: "/images/profile-image-4.png",
     },
 ]
 
