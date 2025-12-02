@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { motion } from "framer-motion"
-import { SwipeCard, ProfileProps } from "@/components/SwipeCard"
-import { ArrowRight } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { SwipeCard, ProfileProps, SwipeCardRef } from "@/components/SwipeCard"
+import { ArrowRight, X, Heart } from "lucide-react"
 
 const MOCK_PROFILES: ProfileProps[] = [
     {
@@ -56,10 +56,14 @@ const MOCK_PROFILES: ProfileProps[] = [
 
 export function Hero() {
     const [currentIndex, setCurrentIndex] = useState(0)
+    const [feedbackEffect, setFeedbackEffect] = useState<"left" | "right" | null>(null)
+    const swipeCardRef = useRef<SwipeCardRef>(null)
 
     const handleSwipe = (direction: "left" | "right") => {
+        setFeedbackEffect(direction)
         setTimeout(() => {
             setCurrentIndex((prev) => (prev + 1) % MOCK_PROFILES.length)
+            setFeedbackEffect(null)
         }, 200)
     }
 
@@ -103,7 +107,7 @@ export function Hero() {
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
-                    className="relative flex justify-center items-center h-[600px] w-full"
+                    className="relative flex flex-col items-center h-[600px] w-full"
                 >
                     <div className="relative w-full max-w-sm h-[500px]">
                         {/* Background decorative elements */}
@@ -130,6 +134,7 @@ export function Hero() {
                                     }}
                                 >
                                     <SwipeCard
+                                        ref={isFront ? swipeCardRef : null}
                                         profile={profile}
                                         isFront={isFront}
                                         onSwipe={isFront ? handleSwipe : undefined}
@@ -137,6 +142,45 @@ export function Hero() {
                                 </div>
                             )
                         })}
+
+                        {/* Post-Swipe Feedback Effect */}
+                        <AnimatePresence>
+                            {feedbackEffect === "right" && (
+                                <motion.div
+                                    initial={{ scale: 0.5, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.8, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                    className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+                                >
+                                    <div className="p-6 rounded-full shadow-xl bg-white/90 backdrop-blur-sm">
+                                        <Heart className="w-16 h-16 text-red-500 fill-red-500" />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-6 mt-8 z-20">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-16 w-16 rounded-full border-2 border-red-500 bg-background hover:bg-red-50 hover:border-red-600 transition-all shadow-lg"
+                            onClick={() => swipeCardRef.current?.swipe("left")}
+                        >
+                            <X className="h-8 w-8 text-red-500" />
+                            <span className="sr-only">Nope</span>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-16 w-16 rounded-full border-2 border-green-500 bg-background hover:bg-green-50 hover:border-green-600 transition-all shadow-lg"
+                            onClick={() => swipeCardRef.current?.swipe("right")}
+                        >
+                            <Heart className="h-8 w-8 text-green-500 fill-green-500" />
+                            <span className="sr-only">Like</span>
+                        </Button>
                     </div>
                 </motion.div>
             </div>

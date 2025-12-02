@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, forwardRef, useImperativeHandle } from "react"
 import Image from "next/image"
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion"
 
@@ -22,27 +22,42 @@ interface Props {
     isFront?: boolean
 }
 
-export function SwipeCard({ profile, onSwipe, isFront = false }: Props) {
+export interface SwipeCardRef {
+    swipe: (direction: "left" | "right") => Promise<void>
+}
+
+interface Props {
+    profile: ProfileProps
+    onSwipe?: (direction: "left" | "right") => void
+    isFront?: boolean
+    dragConstraints?: { left: number; right: number }
+}
+
+export const SwipeCard = forwardRef<SwipeCardRef, Props>(({ profile, onSwipe, isFront = false, dragConstraints }, ref) => {
     const x = useMotionValue(0)
     const controls = useAnimation()
 
     // Rotation based on x position (max ±15 degrees)
     const rotate = useTransform(x, [-200, 200], [-15, 15])
 
-    // Opacity for like/dislike indicators
-    const likeOpacity = useTransform(x, [20, 100], [0, 1])
-    const dislikeOpacity = useTransform(x, [-20, -100], [0, 1])
+    const handleSwipe = async (direction: "left" | "right") => {
+        const targetX = direction === "right" ? 500 : -500
+        await controls.start({ x: targetX, opacity: 0, transition: { duration: 0.2 } })
+        onSwipe?.(direction)
+    }
+
+    useImperativeHandle(ref, () => ({
+        swipe: handleSwipe
+    }))
 
     const handleDragEnd = async (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         const offset = info.offset.x
         const velocity = info.velocity.x
 
         if (offset > 100 || velocity > 500) {
-            await controls.start({ x: 500, opacity: 0, transition: { duration: 0.2 } })
-            onSwipe?.("right")
+            await handleSwipe("right")
         } else if (offset < -100 || velocity < -500) {
-            await controls.start({ x: -500, opacity: 0, transition: { duration: 0.2 } })
-            onSwipe?.("left")
+            await handleSwipe("left")
         } else {
             controls.start({ x: 0, transition: { type: "spring", stiffness: 300, damping: 20 } })
         }
@@ -57,7 +72,7 @@ export function SwipeCard({ profile, onSwipe, isFront = false }: Props) {
             }}
             animate={controls}
             drag={isFront ? "x" : false}
-            dragConstraints={{ left: 0, right: 0 }}
+            dragConstraints={dragConstraints || { left: 0, right: 0 }}
             onDragEnd={handleDragEnd}
             className="absolute w-full h-full bg-card rounded-[32px] shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing border border-border"
             whileTap={{ scale: 1.02 }}
@@ -65,18 +80,8 @@ export function SwipeCard({ profile, onSwipe, isFront = false }: Props) {
             {/* Swipe Indicators */}
             {isFront && (
                 <>
-                    <motion.div
-                        style={{ opacity: likeOpacity }}
-                        className="absolute top-8 left-8 z-20 transform -rotate-12 border-4 border-green-500 rounded-xl px-4 py-2 bg-white/20 backdrop-blur-sm"
-                    >
-                        <span className="text-4xl font-black text-green-500 uppercase tracking-widest drop-shadow-sm">LIKE</span>
-                    </motion.div>
-                    <motion.div
-                        style={{ opacity: dislikeOpacity }}
-                        className="absolute top-8 right-8 z-20 transform rotate-12 border-4 border-red-500 rounded-xl px-4 py-2 bg-white/20 backdrop-blur-sm"
-                    >
-                        <span className="text-4xl font-black text-red-500 uppercase tracking-widest drop-shadow-sm">NOPE</span>
-                    </motion.div>
+                    {/* Hand Gesture Hint */}
+                    <HandGesture />
                 </>
             )}
 
@@ -106,6 +111,47 @@ export function SwipeCard({ profile, onSwipe, isFront = false }: Props) {
                     <span className="text-primary">{profile.mbti}</span>
                 </div>
                 <p className="text-card-foreground/80 text-sm leading-relaxed line-clamp-2">{profile.self_introduction}</p>
+            </div>
+        </motion.div>
+    )
+})
+SwipeCard.displayName = "SwipeCard"
+
+function HandGesture() {
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: 0, y: 0, rotate: 0 }}
+            animate={{
+                opacity: [0, 1, 1, 0],
+                x: [0, -30, 30, 0],
+                y: [0, -10, -10, 0],
+                rotate: [0, -15, 15, 0]
+            }}
+            transition={{
+                duration: 2.5,
+                times: [0, 0.1, 0.8, 1],
+                repeat: 0,
+                delay: 1
+            }}
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none"
+        >
+            <div className="bg-white/90 p-3 rounded-full shadow-lg backdrop-blur-sm">
+                <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-primary"
+                >
+                    <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+                    <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
+                    <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+                    <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                </svg>
             </div>
         </motion.div>
     )
